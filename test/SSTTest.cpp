@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <sst/SST.h>
+#include <utils/Macro.h>
 #include <filesystem>
 
 class SSTTest : public ::testing::Test {
@@ -26,7 +27,9 @@ class SSTTest : public ::testing::Test {
       builder.Add(key, value);
     }
 
-    return builder.Build(1, "test_data/test.sst");
+    auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+
+    return builder.Build(1, "test_data/test.sst", block_cache);
   }
 };
 
@@ -40,7 +43,8 @@ TEST_F(SSTTest, BasicWriteAndRead) {
   builder.Add("key3", "value3");
 
   // 构建SST
-  auto sst = builder.Build(1, "test_data/basic.sst");
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+  auto sst = builder.Build(1, "test_data/basic.sst", block_cache);
 
   // 验证基本属性
   EXPECT_EQ(sst->GetFirstKey(), "key1");
@@ -68,7 +72,8 @@ TEST_F(SSTTest, BlockSplitting) {
     builder.Add(key, value);
   }
 
-  auto sst = builder.Build(1, "test_data/split.sst");
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+  auto sst = builder.Build(1, "test_data/split.sst", block_cache);
 
   // 验证有多个block
   EXPECT_GT(sst->NumBlocks(), 1);
@@ -110,7 +115,8 @@ TEST_F(SSTTest, Metadata) {
 // 测试空SST构建
 TEST_F(SSTTest, EmptySST) {
   SSTBuilder builder(1024);
-  EXPECT_THROW(builder.Build(1, "test_data/empty.sst"), std::runtime_error);
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+  EXPECT_THROW(builder.Build(1, "test_data/empty.sst", block_cache), std::runtime_error);
 }
 
 // 测试SST重新打开
@@ -119,8 +125,9 @@ TEST_F(SSTTest, ReopenSST) {
   auto sst = CreateTestSST(256, 10);
 
   // 重新打开SST
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
   FileObj file = FileObj::Open("test_data/test.sst");
-  auto reopened_sst = SST::Open(1, std::move(file));
+  auto reopened_sst = SST::Open(1, std::move(file), block_cache);
 
   // 验证数据一致性
   EXPECT_EQ(sst->GetFirstKey(), reopened_sst->GetFirstKey());
@@ -144,7 +151,8 @@ TEST_F(SSTTest, LargeSST) {
     builder.Add(key, value);
   }
 
-  auto sst = builder.Build(1, "test_data/large.sst");
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+  auto sst = builder.Build(1, "test_data/large.sst", block_cache);
 
   // 验证数据完整性
   EXPECT_GT(sst->NumBlocks(), 1);

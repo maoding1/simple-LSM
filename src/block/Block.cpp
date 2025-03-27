@@ -145,7 +145,6 @@ std::string Block::GetFirstKey() const {
   return GetKeyAt(GetOffsetAt(0));
 }
 
-
 // predicate(key) < 0: find left
 // predicate(key) = 0: satisfy
 // predicate(key) > 0: find right

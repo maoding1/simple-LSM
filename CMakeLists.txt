@@ -27,7 +27,7 @@ include_directories(include)
 file (GLOB_RECURSE SKIPLIST_SRC src/skiplist/*.cpp)
 add_library(skiplist_lib STATIC ${SKIPLIST_SRC})
 
-file (GLOB_RECURSE MEMORYTABLE_SRC src/memoryTable/*.cpp ${SKIPLIST_SRC})
+file (GLOB_RECURSE MEMORYTABLE_SRC src/*.cpp)
 add_library(memorytable_lib STATIC ${MEMORYTABLE_SRC})
 
 file (GLOB_RECURSE BLOCK_SRC src/block/*.cpp ${MEMORYTABLE_SRC})
@@ -35,6 +35,9 @@ add_library(block_lib STATIC ${BLOCK_SRC})
 
 file (GLOB_RECURSE SST_SRC src/sst/*.cpp ${BLOCK_SRC})
 add_library(sst_lib STATIC ${SST_SRC})
+
+file (GLOB_RECURSE LSM_SRC src/*.cpp)
+add_library(lsm_lib STATIC ${LSM_SRC})
 
 # tests
 add_executable(test_skipList test/SkipListTest.cpp)
@@ -49,17 +52,24 @@ target_link_libraries(test_Block block_lib GTest::gtest_main)
 add_executable(test_BlockMeta test/BlockMetaTest.cpp)
 target_link_libraries(test_BlockMeta block_lib GTest::gtest_main)
 
+add_executable(test_BlockCache test/BlockCacheTest.cpp)
+target_link_libraries(test_BlockCache block_lib GTest::gtest_main)
+
 add_executable(test_Utils test/UtilsTest.cpp)
 target_link_libraries(test_Utils GTest::gtest_main)
 
 add_executable(test_SST test/SSTTest.cpp)
 target_link_libraries(test_SST sst_lib GTest::gtest_main)
 
+add_executable(test_LSM test/LSMTest.cpp)
+target_link_libraries(test_LSM lsm_lib GTest::gtest_main)
 
 enable_testing()
 add_test(NAME skiplist_test COMMAND test_skipList)
 add_test(NAME memorytable_test COMMAND test_MemoryTable)
 add_test(NAME block_test COMMAND test_Block)
 add_test(NAME blockmeta_test COMMAND test_BlockMeta)
+add_test(NAME blockcache_test COMMAND test_BlockCache)
 add_test(NAME utils_test COMMAND test_Utils)
 add_test(NAME sst_test COMMAND test_SST)
+add_test(NAME lsm_test COMMAND test_LSM)

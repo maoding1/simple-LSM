@@ -18,16 +18,20 @@
  * --------------------------------------------------------------------------------------------------------------
  */
 
+#include <block/Block.h>
+#include <block/BlockCache.h>
+#include <block/BlockMeta.h>
+#include <utils/File.h>
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
-#include "../block/Block.h"
-#include "../block/BlockMeta.h"
-#include "../utils/File.h"
 
-// class SSTIterator;
+class SSTIterator;
 
+/** SST Class is a descriptor for SSTable(sorted string table) file, which contains metadata and data blocks
+ * the metadata always store in memory
+ * but the blocks is loaded into memory only when it was needed*/
 class SST : public std::enable_shared_from_this<SST> {
   friend class SSTBuilder;
 
@@ -38,15 +42,17 @@ class SST : public std::enable_shared_from_this<SST> {
   size_t sst_id_;
   std::string first_key_;
   std::string last_key_;
+  std::shared_ptr<BlockCache> block_cache_;
 
  public:
   SST() = default;
 
   // Open an existing SST file
-  static std::shared_ptr<SST> Open(size_t sst_id, FileObj file);
+  static std::shared_ptr<SST> Open(size_t sst_id, FileObj file, std::shared_ptr<BlockCache> block_cache);
   // Create an SST with metadata only
   static std::shared_ptr<SST> CreateSSTWithMetaOnly(size_t sst_id, size_t file_size, const std::string &first_key,
-                                                    const std::string &last_key);
+                                                    const std::string &last_key,
+                                                    std::shared_ptr<BlockCache> block_cache);
   std::shared_ptr<Block> ReadBlock(size_t block_idx);
   size_t FindBlockIndex(const std::string &key);
   size_t NumBlocks() const;
@@ -54,9 +60,9 @@ class SST : public std::enable_shared_from_this<SST> {
   std::string GetLastKey() const;
   size_t GetSSTSize() const;
   size_t GetSSTId() const;
-  // SSTIterator Get(const std::string &key);
-  // SSTIterator begin();  // NOLINT
-  // SSTIterator end();    // NOLINT
+  SSTIterator Get(const std::string &key);
+  SSTIterator Begin();  // NOLINT
+  SSTIterator End();    // NOLINT
 };
 
 class SSTBuilder {
@@ -74,5 +80,6 @@ class SSTBuilder {
   void Add(const std::string &key, const std::string &value);  // add key-value pair
   size_t EstimateSize() const;
   void FinishBlock();
-  std::shared_ptr<SST> Build(size_t sst_id, const std::string &path);
+  std::shared_ptr<SST> Build(size_t sst_id, const std::string &path, std::shared_ptr<BlockCache> block_cache);
+  size_t GetBlockSize() const { return block_size_; }
 };

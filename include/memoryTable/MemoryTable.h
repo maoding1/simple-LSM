@@ -1,9 +1,10 @@
-# pragma once
+#pragma once
 
+#include <memoryTable/HeapIterator.h>
 #include <skiplist/SkipList.h>
+#include <sst/SST.h>
 #include <type/KeyComparator.h>
 #include <list>
-#include "memoryTable/HeapIterator.h"
 
 using StringSkipList = SkipList<std::string, std::string, KeyComparator<std::string>>;
 
@@ -44,6 +45,9 @@ class MemoryTable {
   size_t GetCurSize();
   size_t GetFrozenSize();
   size_t GetTotalSize();
+
+  std::shared_ptr<SST> FlushLast(const std::shared_ptr<SSTBuilder> &builder, const std::string &sst_path, size_t sst_id,
+                                 std::shared_ptr<BlockCache> block_cache);
 
   HeapIterator ItersPreffix(const std::string &preffix);
 };

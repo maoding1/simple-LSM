@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <utility>
 
 MemoryTable::MemoryTable() {
   KeyComparator<std::string> key_comparator;
@@ -136,6 +137,29 @@ size_t MemoryTable::GetTotalSize() {
   std::shared_lock<std::shared_mutex> lock(current_table_mutex_);
   std::shared_lock<std::shared_mutex> lock2(frozen_tables_mutex_);
   return current_table_->UsedBytes() + frozen_bytes_;
+}
+
+std::shared_ptr<SST> MemoryTable::FlushLast(const std::shared_ptr<SSTBuilder> &builder, const std::string &sst_path,
+                                            size_t sst_id, std::shared_ptr<BlockCache> block_cache) {
+  std::unique_lock<std::shared_mutex> lock(current_table_mutex_);
+  std::unique_lock<std::shared_mutex> lock2(frozen_tables_mutex_);
+  if (frozen_tables_.empty()) {
+    if (current_table_->UsedBytes() == 0) {
+      return nullptr;
+    }
+    InternalFrozenCurrentTable();
+  }
+
+  auto table = frozen_tables_.back();
+  frozen_tables_.pop_back();
+  frozen_bytes_ -= table->UsedBytes();
+
+  auto flush_data = table->Dump();
+  for (const auto &item : flush_data) {
+    builder->Add(item.first, item.second);
+  }
+  auto sst = builder->Build(sst_id, sst_path, std::move(block_cache));
+  return sst;
 }
 
 HeapIterator MemoryTable::ItersPreffix(const std::string &preffix) {
