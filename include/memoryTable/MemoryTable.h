@@ -49,5 +49,7 @@ class MemoryTable {
   std::shared_ptr<SST> FlushLast(const std::shared_ptr<SSTBuilder> &builder, const std::string &sst_path, size_t sst_id,
                                  std::shared_ptr<BlockCache> block_cache);
 
+  std::optional<std::pair<HeapIterator, HeapIterator>> ItersMonotonyPredicate(
+      const std::function<int(const std::string &)> &predicate);
   HeapIterator ItersPreffix(const std::string &preffix);
 };

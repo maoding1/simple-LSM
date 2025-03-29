@@ -151,6 +151,61 @@ TEST_F(LSMTest, MixedOperations) {
   EXPECT_FALSE(lsm.Get("key1").has_value());
 }
 
+TEST_F(LSMTest, MonotonyPredicate) {
+  LSM lsm(test_dir_);
+
+  // Insert data
+  for (int i = 0; i < 100; i++) {
+    std::ostringstream oss_key;
+    std::ostringstream oss_value;
+    oss_key << "key" << std::setw(2) << std::setfill('0') << i;
+    oss_value << "value" << std::setw(2) << std::setfill('0') << i;
+    std::string key = oss_key.str();
+    std::string value = oss_value.str();
+    lsm.Put(key, value);
+    if (i == 50) {
+      // 主动刷一次盘
+      lsm.Flush();
+    }
+  }
+
+  // Define a predicate function
+  auto predicate = [](const std::string &key) -> int {
+    int key_num = std::stoi(key.substr(3));  // Extract the number from the key
+    if (key_num < 20) {
+      return 1;
+    }
+    if (key_num > 60) {
+      return -1;
+    }
+    return 0;
+  };
+
+  // Call the method under test
+  auto result = lsm.LSMItersMonotonyPredicate(predicate);
+
+  // Check if the result is not empty
+  ASSERT_TRUE(result.has_value());
+
+  // Extract the iterators from the result
+  auto [start, end] = result.value();
+
+  // Verify the range of keys returned by the iterators
+  std::set<std::string> expected_keys;
+  for (int i = 20; i <= 60; i++) {
+    std::ostringstream oss;
+    oss << "key" << std::setw(2) << std::setfill('0') << i;
+    expected_keys.insert(oss.str());
+  }
+
+  std::set<std::string> actual_keys;
+  for (auto it = start; it != end; ++it) {
+    actual_keys.insert(it->first);
+  }
+
+  EXPECT_EQ(actual_keys, expected_keys);
+}
+
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

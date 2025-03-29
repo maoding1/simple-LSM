@@ -121,6 +121,38 @@ MergeIterator LSMEngine::Begin() {
 
 MergeIterator LSMEngine::End() { return MergeIterator{}; }
 
+std::optional<std::pair<MergeIterator, MergeIterator>> LSMEngine::LSMItersMonotonyPredicate(
+    const std::function<int(const std::string &)> &predicate) {
+  auto mem_result = memtable_.ItersMonotonyPredicate(predicate);
+  std::vector<SearchItem> items;
+  for (auto &[sst_idx, sst] : ssts_) {
+    auto result = SSTItersMonotonyPredicate(sst, predicate);
+    if (!result.has_value()) {
+      continue;
+    }
+    auto &[begin, end] = result.value();
+    while (begin != end) {
+      items.emplace_back(begin.GetKey(), begin.GetValue(), -sst_idx);
+      ++begin;
+    }
+  }
+
+  if (!mem_result.has_value() && items.empty()) {
+    return std::nullopt;
+  }
+
+  HeapIterator l0_iter(items);
+  if (mem_result.has_value()) {
+    auto [mem_start, mem_end] = mem_result.value();
+    auto start = MergeIterator(mem_start, l0_iter);
+    auto end = MergeIterator{};
+    return std::make_pair(start, end);
+  }
+  auto start = MergeIterator(HeapIterator{}, l0_iter);
+  auto end = MergeIterator{};
+  return std::make_pair(start, end);
+}
+
 LSM::LSM(std::string data_dir) : engine_(std::move(data_dir)) {}
 
 LSM::~LSM() { engine_.FlushAll(); }
@@ -138,3 +170,8 @@ void LSM::FlushAll() { engine_.FlushAll(); }
 LSM::LSMIterator LSM::Begin() { return engine_.Begin(); }
 
 LSM::LSMIterator LSM::End() { return engine_.End(); }
+
+std::optional<std::pair<MergeIterator, MergeIterator>> LSM::LSMItersMonotonyPredicate(
+    const std::function<int(const std::string &)> &predicate) {
+  return engine_.LSMItersMonotonyPredicate(predicate);
+}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <random>
@@ -106,6 +107,8 @@ class SkipList {
   Iterator Begin() { return Iterator(head_->forward_[0]); };
   Iterator End() { return Iterator(tail_); };
 
+  std::optional<std::pair<Iterator, Iterator>> ItersMonotonyPredicate(
+      std::function<int(const K &)> predicate);
   // find the first element that is not less than key
   template <typename U = K>
   std::enable_if_t<std::is_same_v<U, std::string>, Iterator> BeginPreffix(const K &preffix) {

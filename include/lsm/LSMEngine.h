@@ -37,6 +37,9 @@ class LSMEngine {
 
   MergeIterator Begin();
   MergeIterator End();
+
+  std::optional<std::pair<MergeIterator, MergeIterator>> LSMItersMonotonyPredicate(
+      const std::function<int(const std::string &)> &predicate);
 };
 
 class LSM {
@@ -58,4 +61,6 @@ class LSM {
   LSMIterator End();
   void Flush();
   void FlushAll();
+  std::optional<std::pair<MergeIterator, MergeIterator>> LSMItersMonotonyPredicate(
+      const std::function<int(const std::string &)> &predicate);
 };

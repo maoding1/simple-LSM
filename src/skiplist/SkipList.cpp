@@ -102,9 +102,9 @@ bool SKIPLIST_TYPE::Put(const K &key, const V &value) {
 
     if (need_update) {
       new_node->SetForward(i, last_[i]->forward_[i]);
+      new_node->forward_[i]->SetBackward(i, new_node);
       last_[i]->SetForward(i, new_node);
       new_node->SetBackward(i, last_[i]);
-      last_[i]->forward_[i]->SetBackward(i, new_node);
     } else {
       // if not to update current level, higher level will not be updated
       break;
@@ -159,6 +159,77 @@ void SKIPLIST_TYPE::Clear() {
   }
   level_ = 0;
   used_bytes_ = 0;
+}
+
+SKIPLIST_TEMPLATE_ARGUMENTS
+std::optional<std::pair<SKIPLIST_ITERATOR_TYPE, SKIPLIST_ITERATOR_TYPE>> SKIPLIST_TYPE::ItersMonotonyPredicate(
+    std::function<int(const K &)> predicate) {
+  auto current = head_;
+  Iterator begin = Iterator(nullptr);
+  Iterator end = Iterator(nullptr);
+
+  bool find = false;
+  for (int i = level_; i >= 0; i--) {
+    while (!find) {
+      auto forward = current->forward_[i];
+      if (forward == tail_) {
+        break;
+      }
+      auto direction = predicate(forward->key_);
+      if (direction == 0) {
+        find = true;
+        current = forward;
+        break;
+      }
+      if (direction < 0) {
+        break;
+      }
+      current = forward;
+    }
+  }
+  if (!find) {
+    return std::nullopt;
+  }
+
+  auto tmp = current;
+  for (int i = current->backward_.size() - 1; i >= 0; i--) {
+    while (true) {
+      if (current->backward_[i].lock() == nullptr || current->backward_[i].lock() == head_) {
+        break;
+      }
+      auto direction = predicate(current->backward_[i].lock()->key_);
+      if (direction == 0) {
+        current = current->backward_[i].lock();
+        continue;
+      }
+      if (direction > 0) {
+        break;
+      }
+      throw std::runtime_error("Monotony predicate: Wrong direction");
+    }
+  }
+
+  begin = Iterator(current);
+  current = tmp;
+  for (int i = current->forward_.size() - 1; i >= 0; i--) {
+    while (true) {
+      if (current->forward_[i] == tail_) {
+        break;
+      }
+      auto direction = predicate(current->forward_[i]->key_);
+      if (direction == 0) {
+        current = current->forward_[i];
+        continue;
+      }
+      if (direction < 0) {
+        break;
+      }
+      throw std::runtime_error("Monotony predicate: Wrong direction");
+    }
+  }
+  end = Iterator(current);
+  ++end;
+  return std::make_pair(begin, end);
 }
 
 // instantiate all the templates we need

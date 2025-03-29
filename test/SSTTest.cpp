@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <sst/SST.h>
+#include <sst/SSTIterator.h>
 #include <utils/Macro.h>
 #include <filesystem>
 
@@ -173,6 +173,45 @@ TEST_F(SSTTest, LargeSST) {
                                  std::string(3 - std::to_string(i).length(), '0') + std::to_string(i);
     EXPECT_EQ(*value, expected_value);
   }
+}
+
+TEST_F(SSTTest, LargeSSTPredicate) {
+  SSTBuilder builder(4096);  // 4KB blocks
+  auto block_cache = std::make_shared<BlockCache>(BLOCK_CACHE_CAPACITY, BLOCK_CACHE_K);
+
+  // 添加大量数据
+  for (int i = 0; i < 1000; i++) {
+    // key格式：key000, key001, ..., key999
+    std::string key = "key" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i);
+
+    // value格式：val000, val001, ..., val999
+    std::string value = "val" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i);
+
+    builder.Add(key, value);
+  }
+
+  auto sst = builder.Build(1, "test_data/large.sst", block_cache);
+
+  auto result = SSTItersMonotonyPredicate(sst, [](const std::string &key) {
+    if (key < "key100") {
+      return 1;
+      ;
+    }
+    if (key > "key500") {
+      return -1;
+      ;
+    }
+    return 0;
+    // return key >= "key100" && key <= "key500";
+  });
+  EXPECT_TRUE(result.has_value());
+  auto [iter_begin, iter_end] = result.value();
+  EXPECT_EQ(iter_begin.GetKey(), "key100");
+  for (int i = 0; i < 100; i++) {
+    ++iter_begin;
+  }
+  EXPECT_EQ(iter_begin.GetKey(), "key200");
+  EXPECT_EQ(iter_end.GetKey(), "key501");
 }
 
 int main(int argc, char **argv) {

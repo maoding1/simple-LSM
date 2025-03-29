@@ -34,6 +34,8 @@ class SSTIterator;
  * but the blocks is loaded into memory only when it was needed*/
 class SST : public std::enable_shared_from_this<SST> {
   friend class SSTBuilder;
+  friend std::optional<std::pair<SSTIterator, SSTIterator>> SSTItersMonotonyPredicate(
+      const std::shared_ptr<SST> &sst, const std::function<int(const std::string &)> &predicate);
 
  private:
   FileObj file_;

@@ -18,9 +18,12 @@ class SSTIterator {
   void SeekFirst();
   void Seek(const std::string &key);
   bool IsEnd();
+  bool IsValid() const;
 
   std::string GetKey();
   std::string GetValue();
+  void SetBlockIdx(size_t block_idx);
+  void SetBlockIter(std::shared_ptr<BlockIterator> block_iter);
 
   SSTIterator &operator++();
   SSTIterator operator++(int) = delete;

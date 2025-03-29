@@ -17,7 +17,7 @@ bool MergeIterator::ChooseIter() {
 }
 
 void MergeIterator::SkipSSTIter() {
-  while (!mem_table_iter_.IsEnd() && !sst_iter_.IsEnd() && sst_iter_->first < mem_table_iter_->first) {
+  while (!mem_table_iter_.IsEnd() && !sst_iter_.IsEnd() && sst_iter_->first == mem_table_iter_->first) {
     ++sst_iter_;
   }
 }

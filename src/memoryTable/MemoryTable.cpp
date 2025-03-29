@@ -23,7 +23,7 @@ void MemoryTable::Put(const std::string &key, const std::string &value) {
   }
 }
 
-void MemoryTable::PutBatch(const std::vector<std::pair<std::string, std::string> > &batch) {
+void MemoryTable::PutBatch(const std::vector<std::pair<std::string, std::string>> &batch) {
   std::unique_lock<std::shared_mutex> lock(current_table_mutex_);
   for (const auto &item : batch) {
     InternalPut(item.first, item.second);
@@ -160,6 +160,40 @@ std::shared_ptr<SST> MemoryTable::FlushLast(const std::shared_ptr<SSTBuilder> &b
   }
   auto sst = builder->Build(sst_id, sst_path, std::move(block_cache));
   return sst;
+}
+
+std::optional<std::pair<HeapIterator, HeapIterator>> MemoryTable::ItersMonotonyPredicate(
+    const std::function<int(const std::string &)> &predicate) {
+  std::vector<SearchItem> item_vec;
+  {
+    std::shared_lock<std::shared_mutex> lock(current_table_mutex_);
+    auto cur_result = current_table_->ItersMonotonyPredicate(predicate);
+    if (cur_result.has_value()) {
+      auto [begin, end] = cur_result.value();
+      for (auto iter = begin; iter != end; ++iter) {
+        item_vec.emplace_back(iter.GetKey(), iter.GetValue(), 0);
+      }
+    }
+  }
+
+  {
+    std::shared_lock<std::shared_mutex> lock(frozen_tables_mutex_);
+    int table_idx = 1;
+    for (const auto &table : frozen_tables_) {
+      auto cur_result = table->ItersMonotonyPredicate(predicate);
+      if (cur_result.has_value()) {
+        auto [begin, end] = cur_result.value();
+        for (auto iter = begin; iter != end; ++iter) {
+          item_vec.emplace_back(iter.GetKey(), iter.GetValue(), table_idx);
+        }
+      }
+      table_idx++;
+    }
+  }
+  if (item_vec.empty()) {
+    return std::nullopt;
+  }
+  return std::make_pair(HeapIterator(item_vec), HeapIterator{});
 }
 
 HeapIterator MemoryTable::ItersPreffix(const std::string &preffix) {
